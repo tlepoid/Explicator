@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
@@ -43,6 +42,7 @@ __all__ = [
     "create",
     "run_mcp",
     "run_chat",
+    "run_web",
     "load_service",
 ]
 
@@ -102,32 +102,17 @@ def run_chat(
                   If omitted, start an interactive REPL.
     """
     from explicator.ai.dispatcher import ToolDispatcher
+    from explicator.ai.orchestrator import run_turn
     from explicator.ai.providers.base import AIMessage
-    from explicator.ai.tools.definitions import TOOL_DEFINITIONS
     from explicator.config import build_provider
 
     provider = build_provider()
     dispatcher = ToolDispatcher(service)
 
-    def _turn(messages: list[AIMessage]) -> str:
-        while True:
-            response = provider.chat(messages, tools=TOOL_DEFINITIONS)
-            messages.append(response.message)
-            if not response.tool_calls:
-                return response.message.content or ""
-            for tc in response.tool_calls:
-                result = dispatcher.dispatch(tc["name"], tc["arguments"])
-                messages.append(
-                    AIMessage(
-                        role="tool",
-                        content=json.dumps(result),
-                        tool_call_id=tc["id"],
-                        name=tc["name"],
-                    )
-                )
-
     if question:
-        print(_turn([AIMessage(role="user", content=question)]))
+        print(
+            run_turn([AIMessage(role="user", content=question)], provider, dispatcher)
+        )
         return
 
     print("Explicator chat — type 'exit' or Ctrl+D to quit.\n")
@@ -141,7 +126,30 @@ def run_chat(
         if user_input.lower() in {"exit", "quit"}:
             break
         messages.append(AIMessage(role="user", content=user_input))
-        print(f"\n{_turn(messages)}\n")
+        print(f"\n{run_turn(messages, provider, dispatcher)}\n")
+
+
+def run_web(
+    service: ModelService,
+    *,
+    host: str = "localhost",
+    port: int = 8000,
+) -> None:
+    """Start the web server backed by the given service.
+
+    Opens a browser-based interface where users can chat with the model
+    and watch the AI tool-calling trace unfold in real time.
+
+    Requires ``fastapi`` and ``uvicorn`` (``pip install 'explicator[web]'``).
+
+    Args:
+        service: The ModelService to query.
+        host: Host to bind the server to (default: localhost).
+        port: Port to listen on (default: 8000).
+    """
+    from explicator.adapters.web.app import run
+
+    run(service, host=host, port=port)
 
 
 def load_service(path: str) -> ModelService:
