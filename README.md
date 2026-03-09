@@ -48,13 +48,19 @@ explicator/
 ### 1. Install
 
 ```bash
-pip install -e ".[claude,dev]"
+uv sync --extra claude --extra dev
 ```
 
 For Azure OpenAI instead:
 
 ```bash
-pip install -e ".[azure,dev]"
+uv sync --extra azure --extra dev
+```
+
+Or with pip:
+
+```bash
+pip install -e ".[claude,dev]"
 ```
 
 ### 2. Configure
@@ -115,8 +121,10 @@ Copy `claude_desktop_config.json.example` into your Claude Desktop config:
 {
   "mcpServers": {
     "explicator": {
-      "command": "python",
+      "command": "uv",
       "args": [
+        "run",
+        "python",
         "-m",
         "explicator.adapters.mcp_server",
         "myapp.model:build_service"
@@ -232,7 +240,7 @@ JSON schema format — a single source of truth consumed by all providers.
 ## Running Tests
 
 ```bash
-pytest
+uv run pytest
 ```
 
 ---

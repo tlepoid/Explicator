@@ -1,8 +1,14 @@
 {
   "mcpServers": {
-    "docent": {
-      "command": "python",
-      "args": ["-m", "docent.adapters.mcp_server"],
+    "explicator": {
+      "command": "uv",
+      "args": [
+        "run",
+        "python",
+        "-m",
+        "explicator.adapters.mcp_server",
+        "myapp.model:build_service"
+      ],
       "env": {
         "ANTHROPIC_API_KEY": "your-api-key-here",
         "AI_PROVIDER": "claude"
