@@ -3,11 +3,65 @@
 
 # Explicator
 
+**Provider-agnostic natural language AI interface for scenario-driven analytical modelling**
+
 </div>
 
 `Explicator` bridges the gap between complex analytical models and the people who need to understand them. Ask a question in plain English, it identifies the right scenarios to run, executes them against your model, and returns a clear explanation of what the results mean. No model expertise required.
 
 Provider-agnostic by design, Explicator works with Claude, Azure OpenAI, Copilot, or any LLM your organisation uses.
+
+---
+
+## Architecture
+
+Explicator follows a ports & adapters (hexagonal) architecture. The domain and application layers contain no framework code — adapters translate between external interfaces and the core `ModelService`.
+
+```mermaid
+graph TB
+    subgraph Entry Points
+        CLI["CLI\n(Click)"]
+        MCP["MCP Server\n(FastMCP)"]
+        Chat["Chat REPL"]
+    end
+
+    subgraph AI Layer
+        Providers["AI Providers\nClaude · Azure OpenAI"]
+        Dispatcher["Tool Dispatcher"]
+        ToolDefs["Tool Definitions\n(OpenAI JSON Schema)"]
+    end
+
+    subgraph Application Layer
+        Service["ModelService\nBusiness Logic"]
+    end
+
+    subgraph Domain Layer
+        Models["Domain Models\nInputField · OutputField\nModelSchema · ScenarioDefinition\nScenarioResult · Override\nScenarioComparison"]
+        Ports["Abstract Ports\nScenarioRunner\nModelRepository"]
+    end
+
+    subgraph Infrastructure
+        InMem["In-Memory Adapters\nInMemoryModelRepository\nFunctionalScenarioRunner"]
+        YourModel["Your Model\n(any Python callable)"]
+    end
+
+    CLI --> Service
+    MCP --> Service
+    Chat --> Dispatcher
+    Chat --> Providers
+    Providers --> ToolDefs
+    Dispatcher --> Service
+    Service --> Ports
+    Ports -.->|implemented by| InMem
+    InMem --> YourModel
+
+    style Service fill:#4a9eda,color:#fff
+    style Models fill:#6bc96b,color:#fff
+    style Ports fill:#6bc96b,color:#fff
+    style CLI fill:#f5a623,color:#fff
+    style MCP fill:#f5a623,color:#fff
+    style Chat fill:#f5a623,color:#fff
+```
 
 ---
 
@@ -245,13 +299,13 @@ uv run pytest
 
 ---
 
-## Architecture
+## Layer Responsibilities
 
-Explicator enforces strict separation between layers:
-
-- **Domain** (`domain/`) — pure Python dataclasses and abstract interfaces; no framework code
-- **Application** (`application/service.py`) — business logic; no framework code; tested directly
-- **Adapters** (`adapters/`) — thin translation layers; CLI and MCP server both call `ModelService`
-- **AI** (`ai/`) — provider adapters and dispatcher; no business logic; no provider-specific code outside its own module
+| Layer | Location | Role |
+|-------|----------|------|
+| **Domain** | `domain/` | Pure Python dataclasses and abstract interfaces — no framework code |
+| **Application** | `application/service.py` | Business logic via `ModelService` — no framework code, tested directly |
+| **Adapters** | `adapters/` | Thin translation layers — CLI and MCP server both call `ModelService` |
+| **AI** | `ai/` | Provider adapters, tool definitions, and dispatcher — no business logic |
 
 The MCP server and CLI are parallel entry points into the same application layer. They share no code with each other except through `ModelService`.
